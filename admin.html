@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Level Construtora</title>
+    <link id="admin-favicon" rel="icon" type="image/png" href="/images/favicon.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <style>
+      body { overflow: auto; padding: 2rem 1rem; background: #050505; color: #fff; font-family: 'Inter', sans-serif; height: auto; min-height: 100dvh; }
+      .admin-container { max-width: 900px; margin: 0 auto; display: none; }
+      .login-container { max-width: 400px; margin: 100px auto; text-align: center; }
+      .panel { background: rgba(20,20,20,0.85); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; backdrop-filter: blur(10px); }
+      h1, h2 { color: white; margin-bottom: 1.5rem; }
+      .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+      .form-group { margin-bottom: 1.25rem; text-align: left; }
+      .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; font-weight: 600; }
+      .form-group input[type="text"],
+      .form-group input[type="url"],
+      .form-group input[type="number"],
+      .form-group input[type="password"],
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        background-color: #080808;
+        border: 1px solid rgba(255,255,255,0.18);
+        color: white;
+        padding: 0.85rem 1rem;
+        border-radius: 0.5rem;
+        font-family: inherit;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+      }
+      .social-input-row { display: flex; align-items: center; gap: 1rem; }
+      .social-input-row input[type="url"], .social-input-row input[type="text"] { flex: 1; }
+      .social-toggle-label { display: flex; align-items: center; gap: 0.5rem; color: #ccc; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+      .social-toggle-label input[type="checkbox"] { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #fff; }
+      .action-btn { border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: #fff; padding: 0.5rem 0.75rem; border-radius: 0.35rem; cursor: pointer; font-family: inherit; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; transition: 0.2s; }
+      .action-btn:hover { background: rgba(255,255,255,0.18); }
+      .action-btn.edit-btn { background: #2563eb; border-color: #2563eb; }
+      .action-btn.delete-btn { background: #dc2626; border-color: #dc2626; }
+      .edit-banner { display: none; background: rgba(37, 99, 235, 0.18); border: 1px solid #3b82f6; color: #93c5fd; padding: 0.85rem 1rem; border-radius: 0.5rem; margin-bottom: 1.25rem; align-items: center; justify-content: space-between; gap: 1rem; }
+      .edit-file-hint { display: none; font-size: 0.78rem; color: #e5c158; margin-top: 0.35rem; }
+      .center-badge { background: rgba(229, 193, 88, 0.2); border: 1px solid rgba(229, 193, 88, 0.5); color: #f8e3a1; padding: 0.15rem 0.55rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 600; }
+      .range-wrapper { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+      .range-input { flex: 1; accent-color: #e5c158; cursor: pointer; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.15); }
+      .range-badge { background: rgba(229, 193, 88, 0.15); border: 1px solid rgba(229, 193, 88, 0.4); color: #f8e3a1; padding: 0.35rem 0.75rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: 700; min-width: 60px; text-align: center; }
+      .watermark-preview-card { position: relative; width: 100%; aspect-ratio: 16/9; max-height: 380px; border-radius: 0.75rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.18); background: #111; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
+      .watermark-preview-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+      .watermark-preview-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-height: 85%; object-fit: contain; pointer-events: none; transition: opacity 0.15s ease, width 0.15s ease; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+      .watermark-status-banner { background: rgba(229, 193, 88, 0.1); border: 1px solid rgba(229, 193, 88, 0.3); color: #f8e3a1; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-top: 0.75rem; font-size: 0.82rem; display: flex; align-items: center; gap: 0.5rem; }
+    </style>
+  </head>
+  <body>
+    <div id="login-screen" class="login-container panel">
+      <h2>Acesso Restrito</h2>
+      <form id="login-form">
+        <div class="form-group">
+          <input type="password" id="login-password" placeholder="Digite sua senha" required />
+        </div>
+        <button type="submit" class="submit-btn">Entrar no Painel</button>
+      </form>
+    </div>
+
+    <div id="admin-dashboard" class="admin-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <h1 style="margin: 0;">Painel de Administração</h1>
+        <div style="display: flex; gap: 0.75rem;">
+          <a href="/" target="_blank" class="back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">Ver Site 3D</a>
+          <button id="logout-btn" class="back-btn">Sair</button>
+        </div>
+      </div>
+
+      <div class="panel" id="form-panel">
+        <h2 id="form-panel-title">Cadastrar Novo Projeto</h2>
+
+        <div id="edit-mode-banner" class="edit-banner">
+          <span id="edit-mode-text">Editando projeto...</span>
+          <button type="button" id="cancel-edit-btn" class="action-btn">Cancelar Edição</button>
+        </div>
+
+        <form id="admin-form">
+          <input type="hidden" id="form-project-id" value="" />
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Nome do Projeto *</label>
+              <input type="text" id="form-title" required placeholder="Ex: Lumina Residence" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Localização e Ano *</label>
+              <input type="text" id="form-subtitle" required placeholder="Ex: Maringá - PR, 2026" />
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Medidas do Lote *</label>
+              <input type="text" id="form-lot" required placeholder="Ex: 15x30m" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Tipo de Imóvel *</label>
+              <select id="form-type" required>
+                <option value="Térrea">Casa Térrea</option>
+                <option value="Sobrado">Sobrado</option>
+                <option value="Geminada">Casa Geminada</option>
+                <option value="Condomínio">Alto Padrão em Condomínio</option>
+                <option value="Comercial">Comercial / Corporativo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Área Construída (m²)</label>
+              <input type="text" id="form-area" placeholder="Ex: 245 m²" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Quartos / Suítes</label>
+              <input type="text" id="form-bedrooms" placeholder="Ex: 3 Suítes" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Vagas de Garagem</label>
+              <input type="text" id="form-garage" placeholder="Ex: 2 Vagas Cobertas" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Status do Projeto</label>
+              <select id="form-status">
+                <option value="Projeto Exclusivo">Projeto Exclusivo</option>
+                <option value="Na Planta">Na Planta</option>
+                <option value="Em Obras">Em Obras</option>
+                <option value="Concluído">Obra Concluída</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Link de Vídeo (YouTube / Tour 3D) - Opcional</label>
+              <input type="url" id="form-video" placeholder="Ex: https://www.youtube.com/watch?v=..." />
+            </div>
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end; padding-bottom: 0.4rem;">
+              <label class="social-toggle-label" style="font-size: 0.92rem; color: #fff; text-transform: none;">
+                <input type="checkbox" id="form-visible" checked /> Mostrar projeto visível na Galeria 3D
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Descrição Detalhada do Projeto *</label>
+            <textarea id="form-desc" rows="4" required placeholder="Descreva os diferenciais arquitetônicos, acabamentos..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Imagens da Fachada / 3D (Até 10) *</label>
+              <input type="file" id="form-facade" accept="image/*" multiple required />
+              <span id="facade-edit-hint" class="edit-file-hint">Deixe em branco para manter as fachadas atuais</span>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Imagens da Planta Humanizada (Até 10) *</label>
+              <input type="file" id="form-plan" accept="image/*" multiple required />
+              <span id="plan-edit-hint" class="edit-file-hint">Deixe em branco para manter as plantas atuais</span>
+            </div>
+          </div>
+
+          <p style="font-size: 0.78rem; color: #888; margin-top: 0.75rem;">
+            ⚡ Otimização Automática WebP Ativa: Suas imagens 4K são otimizadas automaticamente no envio para máxima fluidez 60fps na Galeria 3D.
+          </p>
+
+          <div id="project-watermark-status" class="watermark-status-banner">
+            <span style="font-size: 1.1rem;">🛡️</span>
+            <span id="project-watermark-status-text">
+              Marca d'água ativa: Todas as fachadas e plantas cadastradas receberão a logo centralizada automaticamente (transparência e tamanho configuráveis abaixo).
+            </span>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-admin-btn" style="margin-top: 1.25rem;">Cadastrar Projeto</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h2 style="margin: 0;">Projetos Cadastrados & Ordem na Galeria 3D</h2>
+          <span id="projects-count-badge" style="color: #aaa; font-size: 0.85rem;">0 projetos</span>
+        </div>
+        <p style="font-size: 0.82rem; color: #999; margin-bottom: 1.25rem;">
+          O <strong>1º projeto da lista</strong> é ancorado automaticamente no centro exato da câmera (X=0, Y=0) quando o cliente abre o site.
+        </p>
+        <div id="projects-list-container" style="display: flex; flex-direction: column; gap: 1rem;">
+          <p style="color: #888;">Carregando projetos...</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Logotipo do Site</h2>
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+          <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); min-width: 200px;">
+            <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #888;">Logo Atual:</p>
+            <img id="current-logo-preview" src="/images/logo.png" alt="Logo Level Construtora" style="height: 48px; max-width: 100%; object-fit: contain; display: block;" onerror="this.style.display='none'; document.getElementById('no-logo-text').style.display='block';" onload="this.style.display='block'; document.getElementById('no-logo-text').style.display='none';">
+            <span id="no-logo-text" style="color: #888; font-size: 0.9rem; display: none;">Nenhuma logo carregada</span>
+          </div>
+          <button type="button" id="delete-logo-btn" style="background: #ff4444; color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Remover Logo</button>
+        </div>
+
+        <form id="logo-form">
+          <div class="form-group">
+            <label>Enviar / Trocar Logotipo (PNG, JPG, SVG, WebP)</label>
+            <input type="file" id="form-logo" accept="image/*" required />
+          </div>
+          <button type="submit" class="submit-btn" id="submit-logo-btn">Salvar Logotipo</button>
+        </form>
+      </div>
+
+      <div class="panel" id="watermark-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h2 style="margin: 0;">Marca d'Água nas Imagens (Plantas e Fachadas)</h2>
+          <span id="watermark-active-pill" style="background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4); color: #86efac; padding: 0.2rem 0.6rem; border-radius: 0.4rem; font-size: 0.75rem; font-weight: 600;">Ativa</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #999; margin-top: 0; margin-bottom: 1.5rem;">
+          Defina uma logo para estampar bem no <strong>centro exato</strong> de todas as fotos de fachadas e plantas que você cadastrar no site, escolhendo a transparência e o tamanho ideais.
+        </p>
+
+        <!-- Status da Logo de Marca d'Água -->
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; background: rgba(0,0,0,0.35); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+          <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+            <div style="background: rgba(255,255,255,0.06); padding: 0.85rem 1.25rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.12); min-width: 150px; min-height: 55px; display: flex; align-items: center; justify-content: center;">
+              <img id="watermark-logo-thumb" src="/images/watermark.png" alt="Logo Marca d'água" style="max-height: 48px; max-width: 140px; object-fit: contain; display: block;" onerror="this.src='/images/logo.png';" />
+            </div>
+            <div>
+              <p id="watermark-source-badge" style="margin: 0 0 0.35rem 0; font-size: 0.88rem; font-weight: 600; color: #e5c158;">
+                Carregando logo da marca d'água...
+              </p>
+              <p style="margin: 0; font-size: 0.78rem; color: #888;">
+                Você pode usar uma logo exclusiva para as fotos ou manter a mesma logo oficial do site.
+              </p>
+            </div>
+          </div>
+          <button type="button" id="delete-watermark-btn" style="display: none; background: #dc2626; color: white; border: none; padding: 0.65rem 1.1rem; border-radius: 0.4rem; cursor: pointer; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Usar Logo Padrão do Site</button>
+        </div>
+
+        <!-- Formulário para Upload de Logo Específica de Marca d'Água -->
+        <form id="watermark-logo-form" style="margin-bottom: 2rem;">
+          <div class="form-group">
+            <label>Enviar / Trocar Logo da Marca d'Água (PNG transparente recomendado, JPG, SVG ou WebP)</label>
+            <input type="file" id="form-watermark-logo" accept="image/*" required />
+          </div>
+          <button type="submit" class="submit-btn" id="submit-watermark-logo-btn" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);">Salvar Esta Logo para as Fotos</button>
+        </form>
+
+        <!-- Formulário de Transparência, Tamanho e Ativação -->
+        <form id="watermark-settings-form">
+          <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 1.5rem;">
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+              <label class="social-toggle-label" style="font-size: 0.95rem; color: #fff; text-transform: none; font-weight: 600;">
+                <input type="checkbox" id="watermark-enabled-checkbox" checked /> Inserir marca d'água automaticamente nas novas fachadas e plantas cadastradas
+              </label>
+              <p style="margin: 0.35rem 0 0 1.7rem; font-size: 0.78rem; color: #888;">
+                Ao cadastrar ou atualizar projetos, a logo configurada será gravada no meio de todas as imagens enviadas.
+              </p>
+            </div>
+
+            <div class="form-row">
+              <!-- Slider de Transparência -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="margin: 0;">Transparência da Logo (Opacidade)</label>
+                  <span id="watermark-opacity-badge" class="range-badge">35%</span>
+                </div>
+                <div class="range-wrapper">
+                  <input type="range" id="watermark-opacity-range" class="range-input" min="5" max="100" step="1" value="35" />
+                </div>
+                <p style="margin: 0.4rem 0 0 0; font-size: 0.75rem; color: #777;">
+                  Recomendado: 25% a 50% para proteger a autoria com sofisticação e discrição.
+                </p>
+              </div>
+
+              <!-- Slider de Tamanho da Logo -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="margin: 0;">Tamanho da Logo no Meio da Imagem</label>
+                  <span id="watermark-size-badge" class="range-badge">35%</span>
+                </div>
+                <div class="range-wrapper">
+                  <input type="range" id="watermark-size-range" class="range-input" min="10" max="90" step="1" value="35" />
+                </div>
+                <p style="margin: 0.4rem 0 0 0; font-size: 0.75rem; color: #777;">
+                  Proporção em relação à largura da imagem (% mantendo o aspecto da logo).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Preview Interativo em Tempo Real -->
+          <div style="margin-bottom: 1.5rem;">
+            <div style="margin-bottom: 0.75rem;">
+              <label style="margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; font-weight: 600;">
+                👁️ Pré-visualização ao Vivo (Centro da Imagem)
+              </label>
+            </div>
+
+            <div class="watermark-preview-card" id="watermark-preview-card">
+              <!-- Fundo demonstrativo -->
+              <img id="watermark-preview-sample-bg" class="watermark-preview-bg" src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80" alt="Preview Imagem" />
+              <!-- Logo centralizada -->
+              <img id="watermark-preview-logo-img" class="watermark-preview-logo" src="/images/watermark.png" alt="Marca d'água no centro" onerror="this.src='/images/logo.png';" />
+              
+              <!-- Badge indicador de posição central -->
+              <div style="position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.15); padding: 0.3rem 0.6rem; border-radius: 0.35rem; font-size: 0.72rem; color: #ddd; pointer-events: none;">
+                📍 Posição: <strong>Centro Exato</strong>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-watermark-settings-btn">Salvar Configurações da Marca d'Água</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Ícone da Aba do Navegador (Favicon)</h2>
+        <p style="font-size: 0.85rem; color: #999; margin-top: -0.75rem; margin-bottom: 1.25rem;">
+          Envie um ícone quadrado ou com bom contraste (ex: fundo escuro ou traço mais forte) para ficar bem visível tanto em abas claras quanto escuras do navegador.
+        </p>
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="background: #f1f3f4; color: #202124; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 0.65rem;">
+              <img id="current-favicon-preview-light" src="/images/favicon.png" alt="Favicon Aba Clara" style="width: 24px; height: 24px; object-fit: contain; display: block;" onerror="this.style.display='none';" onload="this.style.display='block';">
+              <span style="font-size: 0.8rem; font-weight: 600;">Aba Clara</span>
+            </div>
+            <div style="background: #202124; color: #e8eaed; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; gap: 0.65rem;">
+              <img id="current-favicon-preview-dark" src="/images/favicon.png" alt="Favicon Aba Escura" style="width: 24px; height: 24px; object-fit: contain; display: block;" onerror="this.style.display='none';" onload="this.style.display='block';">
+              <span style="font-size: 0.8rem; font-weight: 600;">Aba Escura</span>
+            </div>
+            <span id="favicon-status-badge" style="color: #aaa; font-size: 0.82rem;">Carregando...</span>
+          </div>
+          <button type="button" id="delete-favicon-btn" style="background: #ff4444; color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Restaurar Padrão</button>
+        </div>
+
+        <form id="favicon-form">
+          <div class="form-group">
+            <label>Enviar / Trocar Ícone da Aba (PNG, ICO, SVG, JPG, WebP)</label>
+            <input type="file" id="form-favicon" accept="image/*,.ico" required />
+          </div>
+          <button type="submit" class="submit-btn" id="submit-favicon-btn">Salvar Ícone da Aba</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Configurar Redes Sociais e Contato</h2>
+        <form id="settings-form">
+            <div class="form-group">
+              <label>Instagram</label>
+              <div class="social-input-row">
+                <input type="url" id="form-instagram" placeholder="https://instagram.com/..." />
+                <label class="social-toggle-label">
+                  <input type="checkbox" id="form-instagram-enabled" checked /> Ativo
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Facebook</label>
+              <div class="social-input-row">
+                <input type="url" id="form-facebook" placeholder="https://facebook.com/..." />
+                <label class="social-toggle-label">
+                  <input type="checkbox" id="form-facebook-enabled" checked /> Ativo
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>YouTube</label>
+              <div class="social-input-row">
+                <input type="url" id="form-youtube" placeholder="https://youtube.com/..." />
+                <label class="social-toggle-label">
+                  <input type="checkbox" id="form-youtube-enabled" checked /> Ativo
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Número ou Link do WhatsApp</label>
+              <div class="social-input-row">
+                <input type="text" id="form-whatsapp" placeholder="Ex: 5544998641000 ou https://wa.me/..." />
+                <label class="social-toggle-label">
+                  <input type="checkbox" id="form-whatsapp-enabled" checked /> Ativo
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Mensagem Padrão do WhatsApp (Página Inicial)</label>
+              <input type="text" id="form-whatsapp-msg" placeholder="Ex: Olá! Encontrei a construtora no Google, gostaria de mais informações." />
+            </div>
+            <div class="form-group">
+              <label>Endereço Exibido no Rodapé</label>
+              <input type="text" id="form-address" placeholder="Avenida Centenário 520, Maringá - PR" />
+            </div>
+            <button type="submit" class="submit-btn" id="submit-settings-btn">Salvar Configurações</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Alterar Senha do Painel</h2>
+        <form id="password-form">
+            <div class="form-group">
+              <label>Nova Senha</label>
+              <input type="password" id="form-new-password" required placeholder="Digite a nova senha" />
+            </div>
+            <button type="submit" class="submit-btn" id="submit-password-btn">Salvar Senha</button>
+        </form>
+      </div>
+    </div>
+    
+    <script type="module" src="./admin.js"></script>
+  </body>
+</html>

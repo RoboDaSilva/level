@@ -11,28 +11,129 @@ const PORT = process.env.PORT || 80;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-const IMAGES_DIR = path.join(__dirname, 'images');
-const DATA_FILE = path.join(__dirname, 'data.json');
-const PASSWORD_FILE = path.join(__dirname, 'password.json');
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : (fs.existsSync('/data') ? '/data' : __dirname);
+
+const IMAGES_DIR = process.env.IMAGES_DIR
+  ? path.resolve(process.env.IMAGES_DIR)
+  : path.join(DATA_DIR, 'images');
+
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const PASSWORD_FILE = path.join(DATA_DIR, 'password.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const INDEX_HTML_FILE = path.join(__dirname, 'index.html');
 
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 if (!fs.existsSync(IMAGES_DIR)) {
   fs.mkdirSync(IMAGES_DIR, { recursive: true });
 }
 
-function readJsonSafe(filePath, fallback) {
+// Migração e sincronização segura caso DATA_DIR seja diferente de __dirname (ex: Volume Docker)
+if (path.resolve(DATA_DIR) !== path.resolve(__dirname)) {
+  const oldData = path.join(__dirname, 'data.json');
+  if (fs.existsSync(oldData) && !fs.existsSync(DATA_FILE)) {
+    try { fs.copyFileSync(oldData, DATA_FILE); } catch (e) {}
+  }
+  const oldSettings = path.join(__dirname, 'settings.json');
+  if (fs.existsSync(oldSettings) && !fs.existsSync(SETTINGS_FILE)) {
+    try { fs.copyFileSync(oldSettings, SETTINGS_FILE); } catch (e) {}
+  }
+  const oldPass = path.join(__dirname, 'password.json');
+  if (fs.existsSync(oldPass) && !fs.existsSync(PASSWORD_FILE)) {
+    try { fs.copyFileSync(oldPass, PASSWORD_FILE); } catch (e) {}
+  }
+  const oldImages = path.join(__dirname, 'images');
+  if (fs.existsSync(oldImages) && path.resolve(oldImages) !== path.resolve(IMAGES_DIR)) {
+    try {
+      const files = fs.readdirSync(oldImages);
+      files.forEach(f => {
+        const src = path.join(oldImages, f);
+        const dst = path.join(IMAGES_DIR, f);
+        if (!fs.existsSync(dst) && fs.statSync(src).isFile()) {
+          fs.copyFileSync(src, dst);
+        }
+      });
+    } catch (e) {}
+  }
+}
+
+function writeJsonAtomic(filePath, data) {
   try {
-    if (!fs.existsSync(filePath)) return fallback;
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const content = JSON.stringify(data, null, 2);
+    const tempFile = `${filePath}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+    fs.writeFileSync(tempFile, content, 'utf8');
+
+    // Cria backup de segurança (.bak) do arquivo anterior válido antes de substituí-lo
+    if (fs.existsSync(filePath)) {
+      try {
+        const currentRaw = fs.readFileSync(filePath, 'utf8');
+        if (currentRaw && currentRaw.trim().length > 2) {
+          const bakFile = `${filePath}.bak`;
+          fs.writeFileSync(bakFile, currentRaw, 'utf8');
+        }
+      } catch (e) {}
+    }
+
+    fs.renameSync(tempFile, filePath);
   } catch (err) {
-    return fallback;
+    console.error(`Erro ao salvar atomicamente ${filePath}:`, err);
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (fallbackErr) {
+      console.error(`Falha no fallback de gravação para ${filePath}:`, fallbackErr);
+    }
   }
 }
 
 function writeJsonSafe(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  writeJsonAtomic(filePath, data);
+}
+
+function readJsonSafe(filePath, fallback) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      if (raw && raw.trim().length > 0) {
+        const parsed = JSON.parse(raw);
+        // Se esperava uma lista de projetos mas veio vazia, verifica se o backup tem os projetos
+        if (Array.isArray(fallback) && Array.isArray(parsed) && parsed.length === 0) {
+          const bakFile = `${filePath}.bak`;
+          if (fs.existsSync(bakFile)) {
+            try {
+              const bakRaw = fs.readFileSync(bakFile, 'utf8');
+              const bakParsed = JSON.parse(bakRaw);
+              if (Array.isArray(bakParsed) && bakParsed.length > 0) {
+                console.log(`[RECUPERAÇÃO] Restaurando ${bakParsed.length} projetos do backup automático (.bak)!`);
+                writeJsonAtomic(filePath, bakParsed);
+                return bakParsed;
+              }
+            } catch (e) {}
+          }
+        }
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(`Aviso ao ler ${filePath}: ${err.message}. Verificando backup (.bak)...`);
+    const bakFile = `${filePath}.bak`;
+    if (fs.existsSync(bakFile)) {
+      try {
+        const bakRaw = fs.readFileSync(bakFile, 'utf8');
+        const bakParsed = JSON.parse(bakRaw);
+        console.log(`[RECUPERAÇÃO] Arquivo restaurado com sucesso do backup automático!`);
+        writeJsonAtomic(filePath, bakParsed);
+        return bakParsed;
+      } catch (e) {}
+    }
+  }
+  return fallback;
 }
 
 function toBool(val, defaultVal = true) {
@@ -123,26 +224,8 @@ if (!fs.existsSync(SETTINGS_FILE)) {
 function getValidProjects() {
   const projects = readJsonSafe(DATA_FILE, []);
   if (!Array.isArray(projects)) return [];
-  return projects.filter(p => {
-    const facades = p.facades || (p.facade ? [p.facade] : []);
-    if (facades.length === 0) return false;
-    const firstImg = path.join(IMAGES_DIR, path.basename(facades[0]));
-    return fs.existsSync(firstImg);
-  });
+  return projects;
 }
-
-function cleanGhostProjects() {
-  const projects = readJsonSafe(DATA_FILE, []);
-  if (!Array.isArray(projects)) {
-    writeJsonSafe(DATA_FILE, []);
-    return;
-  }
-  const validProjects = getValidProjects();
-  if (validProjects.length !== projects.length) {
-    writeJsonSafe(DATA_FILE, validProjects);
-  }
-}
-cleanGhostProjects();
 
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -252,6 +335,13 @@ app.use('/images', express.static(IMAGES_DIR, {
   maxAge: '30d',
   immutable: true
 }));
+const fallbackLocalImages = path.join(__dirname, 'images');
+if (path.resolve(IMAGES_DIR) !== path.resolve(fallbackLocalImages) && fs.existsSync(fallbackLocalImages)) {
+  app.use('/images', express.static(fallbackLocalImages, {
+    maxAge: '30d',
+    immutable: true
+  }));
+}
 
 /* ==========================================================================
    SEO, AEO (/llms.txt), SITEMAP & DYNAMIC SSR INJECTION
@@ -918,6 +1008,44 @@ app.delete('/api/projects/:id', requireAuth, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor Level Construtora rodando na porta ${PORT}`);
+/* ==========================================================================
+   ROTAS DE BACKUP E RESTAURAÇÃO DE SEGURANÇA DOS PROJETOS
+   ========================================================================== */
+app.get('/api/projects/export', requireAuth, (req, res) => {
+  const projects = readJsonSafe(DATA_FILE, []);
+  res.setHeader('Content-Disposition', 'attachment; filename="backup-projetos-level.json"');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(projects, null, 2));
 });
+
+app.post('/api/projects/restore', requireAuth, (req, res) => {
+  try {
+    const { projects } = req.body || {};
+    if (!Array.isArray(projects)) {
+      return res.status(400).json({ error: 'Formato inválido: esperava uma lista de projetos.' });
+    }
+    writeJsonSafe(DATA_FILE, projects);
+    res.json({ success: true, count: projects.length });
+  } catch (err) {
+    console.error('Erro ao restaurar projetos:', err);
+    res.status(500).json({ error: 'Falha ao restaurar projetos' });
+  }
+});
+
+const server = app.listen(PORT, () => {
+  console.log(`Servidor Level Construtora rodando na porta ${PORT}`);
+  console.log(`Persistência ativa em: ${DATA_DIR}`);
+  console.log(`Diretório de imagens em: ${IMAGES_DIR}`);
+});
+
+function gracefulShutdown(signal) {
+  console.log(`Recebido sinal de encerramento ${signal}. Salvando estado e finalizando com segurança...`);
+  server.close(() => {
+    console.log('Servidor finalizado com sucesso.');
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(0), 4000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

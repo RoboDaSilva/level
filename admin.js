@@ -439,6 +439,131 @@ async function saveProjectOrder(orderedProjects) {
   }
 }
 
+const localBackupBanner = document.getElementById('local-backup-banner');
+const localBackupText = document.getElementById('local-backup-text');
+const restoreLocalBackupBtn = document.getElementById('restore-local-backup-btn');
+const exportBackupBtn = document.getElementById('export-backup-btn');
+const importBackupBtn = document.getElementById('import-backup-btn');
+const importBackupInput = document.getElementById('import-backup-input');
+
+function checkLocalBackupNotice() {
+  if (!localBackupBanner || !localBackupText) return;
+  try {
+    const rawLocal = localStorage.getItem('level_projects_cache');
+    if (rawLocal) {
+      const parsed = JSON.parse(rawLocal);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        localBackupText.innerText = `${parsed.length} projeto(s) salvos no navegador. Clique ao lado para restaurá-los no servidor.`;
+        localBackupBanner.style.display = 'flex';
+        return;
+      }
+    }
+  } catch (e) {}
+  localBackupBanner.style.display = 'none';
+}
+
+function hideLocalBackupNotice() {
+  if (localBackupBanner) localBackupBanner.style.display = 'none';
+}
+
+if (restoreLocalBackupBtn) {
+  restoreLocalBackupBtn.addEventListener('click', async () => {
+    try {
+      const rawLocal = localStorage.getItem('level_projects_cache');
+      if (!rawLocal) return;
+      const parsed = JSON.parse(rawLocal);
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+      restoreLocalBackupBtn.disabled = true;
+      restoreLocalBackupBtn.innerText = 'Restaurando...';
+
+      const res = await fetch('/api/projects/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('adminToken')
+        },
+        body: JSON.stringify({ projects: parsed })
+      });
+
+      if (!res.ok) throw new Error('Falha na resposta do servidor');
+      alert(`${parsed.length} projetos restaurados com sucesso!`);
+      await fetchAdminProjects();
+    } catch (err) {
+      alert(`Erro ao restaurar backup: ${err.message}`);
+    } finally {
+      if (restoreLocalBackupBtn) {
+        restoreLocalBackupBtn.disabled = false;
+        restoreLocalBackupBtn.innerText = 'Restaurar no Servidor';
+      }
+    }
+  });
+}
+
+if (exportBackupBtn) {
+  exportBackupBtn.addEventListener('click', async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`/api/projects/export?t=${Date.now()}`, {
+        headers: { 'Authorization': token }
+      });
+      if (!res.ok) throw new Error('Falha ao baixar backup');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-projetos-level-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar backup: ' + e.message);
+    }
+  });
+}
+
+if (importBackupBtn && importBackupInput) {
+  importBackupBtn.addEventListener('click', () => {
+    importBackupInput.click();
+  });
+
+  importBackupInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const projects = JSON.parse(text);
+      if (!Array.isArray(projects)) {
+        throw new Error('O arquivo selecionado não contém uma lista válida de projetos.');
+      }
+
+      if (!confirm(`Deseja importar ${projects.length} projetos para o servidor?`)) {
+        importBackupInput.value = '';
+        return;
+      }
+
+      const res = await fetch('/api/projects/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('adminToken')
+        },
+        body: JSON.stringify({ projects })
+      });
+
+      if (!res.ok) throw new Error('Falha ao enviar backup para o servidor');
+      alert('Projetos importados com sucesso!');
+      await fetchAdminProjects();
+    } catch (err) {
+      alert(`Falha ao importar backup: ${err.message}`);
+    } finally {
+      importBackupInput.value = '';
+    }
+  });
+}
+
 async function fetchAdminProjects() {
   if (!projectsListContainer) return;
   projectsListContainer.innerHTML = '<p style="color: #888;">Carregando projetos...</p>';
@@ -454,8 +579,14 @@ async function fetchAdminProjects() {
       cachedProjects = [];
       if (projectsCountBadge) projectsCountBadge.innerText = '0 projetos';
       projectsListContainer.innerHTML = '<p style="color: #888;">Nenhum projeto cadastrado no momento.</p>';
+      checkLocalBackupNotice();
       return;
     }
+
+    try {
+      localStorage.setItem('level_projects_cache', JSON.stringify(rawData));
+    } catch (e) {}
+    hideLocalBackupNotice();
 
     cachedProjects = rawData
       .map((p, idx) => {

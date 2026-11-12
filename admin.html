@@ -184,11 +184,25 @@
       <div class="panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
           <h2 style="margin: 0;">Projetos Cadastrados & Ordem na Galeria 3D</h2>
-          <span id="projects-count-badge" style="color: #aaa; font-size: 0.85rem;">0 projetos</span>
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" id="export-backup-btn" class="action-btn" title="Baixar arquivo JSON com todos os projetos">📥 Exportar Backup</button>
+            <button type="button" id="import-backup-btn" class="action-btn" title="Importar arquivo JSON de backup">📤 Importar Backup</button>
+            <input type="file" id="import-backup-input" accept=".json" style="display: none;" />
+            <span id="projects-count-badge" style="color: #aaa; font-size: 0.85rem;">0 projetos</span>
+          </div>
         </div>
         <p style="font-size: 0.82rem; color: #999; margin-bottom: 1.25rem;">
           O <strong>1º projeto da lista</strong> é ancorado automaticamente no centro exato da câmera (X=0, Y=0) quando o cliente abre o site.
         </p>
+
+        <div id="local-backup-banner" style="display: none; background: rgba(229, 193, 88, 0.15); border: 1px solid #e5c158; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <strong style="color: #f8e3a1;">🛡️ Backup Automático Encontrado:</strong>
+            <span id="local-backup-text" style="color: #ddd; font-size: 0.88rem; margin-left: 0.5rem;"></span>
+          </div>
+          <button type="button" id="restore-local-backup-btn" class="action-btn" style="background: #e5c158; color: #000; font-weight: 700;">Restaurar no Servidor</button>
+        </div>
+
         <div id="projects-list-container" style="display: flex; flex-direction: column; gap: 1rem;">
           <p style="color: #888;">Carregando projetos...</p>
         </div>

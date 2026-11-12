@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    container_name: level_construtora
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./data:/app/data
+      - ./images:/app/images
+    environment:
+      - PORT=80
+      - DATA_DIR=/app/data
+      - IMAGES_DIR=/app/images
+
